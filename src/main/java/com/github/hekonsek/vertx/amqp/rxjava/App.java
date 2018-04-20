@@ -1,5 +1,7 @@
 package com.github.hekonsek.vertx.amqp.rxjava;
 
+import com.github.hekonsek.vertx.amqp.rxjava.kapua.Device;
+import com.github.hekonsek.vertx.amqp.rxjava.kapua.DeviceRegistryService;
 import io.vertx.proton.ProtonClient;
 import io.vertx.proton.ProtonHelper;
 import org.apache.qpid.proton.message.Message;
@@ -11,8 +13,30 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class App {
 
     public static void main(String[] args) throws InterruptedException {
-        String serviceAddress = "foo";
-        amqpFlowable(serviceAddress).subscribe(event -> event.reply("Yo!").subscribe());
+        DeviceRegistryService deviceRegistryService = null;
+        String devicesUpdates = "deviceUpdates";
+
+        // Generic reply
+        amqpFlowable(devicesUpdates).subscribe(event -> event.reply("New device update confirmed.").subscribe());
+
+        // Reply with confirmation
+        amqpFlowable(devicesUpdates).subscribe(event ->
+                event.reply("New device update confirmed.").
+                        subscribe(() -> System.out.print("Confirmation received by client."))
+        );
+
+        // Invoking blocking API
+        amqpFlowable(devicesUpdates).subscribe(event -> {
+            Device dev = syncKapuaService.get();
+            event.reply(dev).subscribe();
+        });
+
+        // Invoking non-blocking API
+        amqpFlowable(devicesUpdates).flatMap( deviceUpdate -> done ->
+                deviceRegistryService.create(deviceUpdate.body(Device.class)).subscribe(done::onNext)
+        ).subscribe();
+
+        // Tests setup
 
         SECONDS.sleep(1);
 
@@ -25,7 +49,7 @@ public class App {
         ProtonClient.create(vertx()).connect("localhost", 5672, con -> {
             Message message = ProtonHelper.message("xxx");
             message.setReplyTo("foo-response");
-            con.result().open().createSender(serviceAddress).open().send(message);
+            con.result().open().createSender(devicesUpdates).open().send(message);
         });
     }
 

@@ -1,6 +1,7 @@
 package com.github.hekonsek.vertx.amqp.rxjava;
 
 import io.reactivex.Completable;
+import io.reactivex.Single;
 import io.vertx.proton.ProtonConnection;
 import org.apache.qpid.proton.message.Message;
 
@@ -30,6 +31,10 @@ public class AmqpEvent {
 
     public Message getMessage() {
         return message;
+    }
+
+    public <T> Single<T> body(Class<T> type) {
+        return null;
     }
 
 }
